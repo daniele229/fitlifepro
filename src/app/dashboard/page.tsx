@@ -1,8 +1,10 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -79,9 +81,14 @@ export default function Dashboard() {
   }, []);
 
   async function checkUser() {
+    if (!isSupabaseConfigured()) {
+      router.push('/');
+      return;
+    }
+
     const {
       data: { session },
-    } = await supabase.auth.getSession();
+    } = await supabase!.auth.getSession();
 
     if (!session) {
       router.push('/auth');
@@ -94,9 +101,11 @@ export default function Dashboard() {
   }
 
   async function loadData(userId: string) {
+    if (!isSupabaseConfigured()) return;
+
     // Carregar refeições de hoje
     const today = new Date().toISOString().split('T')[0];
-    const { data: mealsData } = await supabase
+    const { data: mealsData } = await supabase!
       .from('meals')
       .select('*')
       .eq('user_id', userId)
@@ -106,7 +115,7 @@ export default function Dashboard() {
     if (mealsData) setMeals(mealsData);
 
     // Carregar exercícios de hoje
-    const { data: exercisesData } = await supabase
+    const { data: exercisesData } = await supabase!
       .from('exercises')
       .select('*')
       .eq('user_id', userId)
@@ -116,7 +125,7 @@ export default function Dashboard() {
     if (exercisesData) setExercises(exercisesData);
 
     // Carregar meta fitness
-    const { data: goalData } = await supabase
+    const { data: goalData } = await supabase!
       .from('fitness_goals')
       .select('*')
       .eq('user_id', userId)
@@ -128,14 +137,15 @@ export default function Dashboard() {
   }
 
   async function handleSignOut() {
-    await supabase.auth.signOut();
+    if (!isSupabaseConfigured()) return;
+    await supabase!.auth.signOut();
     router.push('/');
   }
 
   async function addMeal() {
-    if (!user || !newMeal.meal_name) return;
+    if (!user || !newMeal.meal_name || !isSupabaseConfigured()) return;
 
-    const { error } = await supabase.from('meals').insert([
+    const { error } = await supabase!.from('meals').insert([
       {
         user_id: user.id,
         ...newMeal,
@@ -158,9 +168,9 @@ export default function Dashboard() {
   }
 
   async function addExercise() {
-    if (!user || !newExercise.exercise_name) return;
+    if (!user || !newExercise.exercise_name || !isSupabaseConfigured()) return;
 
-    const { error } = await supabase.from('exercises').insert([
+    const { error } = await supabase!.from('exercises').insert([
       {
         user_id: user.id,
         ...newExercise,
@@ -191,6 +201,28 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-900 dark:to-gray-800">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0072CE]"></div>
+      </div>
+    );
+  }
+
+  if (!isSupabaseConfigured()) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-900 dark:to-gray-800 px-4">
+        <Card className="p-8 max-w-md text-center">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            Configuração Necessária
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            As variáveis de ambiente do Supabase não estão configuradas. 
+            Por favor, configure-as para continuar.
+          </p>
+          <button
+            onClick={() => router.push('/')}
+            className="text-[#0072CE] hover:text-[#0062B8] font-medium"
+          >
+            ← Voltar para o início
+          </button>
+        </Card>
       </div>
     );
   }

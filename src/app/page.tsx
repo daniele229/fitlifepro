@@ -102,7 +102,9 @@ export default function Home() {
       setCurrentStep(currentStep + 1);
     } else {
       // Quiz completo - redirecionar para auth com dados do quiz
-      localStorage.setItem('quizData', JSON.stringify(quizData));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('quizData', JSON.stringify(quizData));
+      }
       router.push('/auth');
     }
   };

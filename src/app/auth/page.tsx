@@ -1,8 +1,10 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Apple, TrendingUp, Target, Activity, Utensils } from 'lucide-react';
@@ -25,6 +27,18 @@ export default function AuthPage() {
   const [analysis, setAnalysis] = useState<any>(null);
 
   useEffect(() => {
+    // Verificar se o Supabase está configurado
+    if (!isSupabaseConfigured()) {
+      console.error('Supabase não está configurado');
+      setLoading(false);
+      return;
+    }
+
+    // Verificar se estamos no navegador
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     // Carregar dados do quiz
     const storedQuizData = localStorage.getItem('quizData');
     if (storedQuizData) {
@@ -38,7 +52,7 @@ export default function AuthPage() {
     }
 
     // Verificar se usuário já está logado
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase!.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
         // Salvar dados do quiz no banco antes de redirecionar
         if (storedQuizData) {
@@ -54,7 +68,7 @@ export default function AuthPage() {
     // Escutar mudanças de autenticação
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase!.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
         // Salvar dados do quiz no banco
         if (storedQuizData) {
@@ -135,6 +149,8 @@ export default function AuthPage() {
   };
 
   const saveQuizDataToDatabase = async (userId: string, data: QuizData) => {
+    if (!isSupabaseConfigured()) return;
+
     const weight = parseFloat(data.weight);
     const height = parseFloat(data.height) / 100;
     const bmi = weight / (height * height);
@@ -147,7 +163,7 @@ export default function AuthPage() {
     }
 
     // Salvar meta fitness
-    await supabase.from('fitness_goals').insert([
+    await supabase!.from('fitness_goals').insert([
       {
         user_id: userId,
         goal_type: data.goal,
@@ -171,6 +187,28 @@ export default function AuthPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-900 dark:to-gray-800">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0072CE]"></div>
+      </div>
+    );
+  }
+
+  if (!isSupabaseConfigured()) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-900 dark:to-gray-800 px-4">
+        <Card className="p-8 max-w-md text-center">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            Configuração Necessária
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            As variáveis de ambiente do Supabase não estão configuradas. 
+            Por favor, configure-as para continuar.
+          </p>
+          <button
+            onClick={() => router.push('/')}
+            className="text-[#0072CE] hover:text-[#0062B8] font-medium"
+          >
+            ← Voltar para o início
+          </button>
+        </Card>
       </div>
     );
   }
@@ -330,7 +368,7 @@ export default function AuthPage() {
                 </div>
 
                 <Auth
-                  supabaseClient={supabase}
+                  supabaseClient={supabase!}
                   appearance={{
                     theme: ThemeSupa,
                     variables: {
@@ -410,7 +448,9 @@ export default function AuthPage() {
         <div className="text-center">
           <button
             onClick={() => {
-              localStorage.removeItem('quizData');
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('quizData');
+              }
               router.push('/');
             }}
             className="text-[#0072CE] hover:text-[#0062B8] font-medium transition-colors"
